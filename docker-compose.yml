@@ -1,0 +1,76 @@
+version: "3.8"
+
+# Shared network so all containers can talk to each other by service name
+networks:
+  weather_net:
+    driver: bridge
+
+# Named volume so PostgreSQL data survives container restarts
+volumes:
+  postgres_data:
+
+services:
+
+  # ── 1. PostgreSQL ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15
+    container_name: weather_postgres
+    networks:
+      - weather_net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_DB: airflow          # Airflow stores its own metadata here
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Run our init script when the container starts for the first time
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "5432:5432"                 # Expose so you can inspect with DBeaver/psql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-airflow}"]
+      interval: 10s
+      retries: 5
+
+  # ── 2. Airflow (standalone mode – scheduler + webserver in one container) ──
+  airflow:
+    # Build our custom image (Airflow + our Python deps) from the Dockerfile
+    build: .
+    image: weather-airflow:latest
+    container_name: weather_airflow
+    networks:
+      - weather_net
+    depends_on:
+      postgres:
+        condition: service_healthy   # Wait until Postgres is ready
+    environment:
+      # Tell Airflow to use our Postgres instead of the default SQLite
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-airflow}:${POSTGRES_PASSWORD:-airflow}@postgres:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"   # Don't clutter UI with example DAGs
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-changeme_generate_a_random_value}
+      _AIRFLOW_DB_MIGRATE: "true"             # Auto-run DB migrations on start
+      _AIRFLOW_WWW_USER_CREATE: "true"        # Create admin user automatically
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+      # Make our src/ folder importable from inside DAGs
+      PYTHONPATH: "/opt/airflow/src"
+      # Connection details our weather_fetcher.py reads (note: host is the service name)
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${WEATHER_DB_NAME:-weather_data}
+      DB_USER: ${POSTGRES_USER:-airflow}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+    volumes:
+      - ./dags:/opt/airflow/dags       # Our DAG files
+      - ./logs:/opt/airflow/logs       # Airflow task logs
+      - ./plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src         # Our pipeline logic (importable via PYTHONPATH)
+    ports:
+      - "8080:8080"                    # Airflow web UI
+    command: standalone                # Starts scheduler + webserver together
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      retries: 5
+      start_period: 60s

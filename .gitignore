@@ -1,0 +1,19 @@
+# Airflow writes runtime logs here — not source code
+logs/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# Test / tooling caches
+.pytest_cache/
+
+# Local environment overrides
+.env
+
+# macOS
+.DS_Store

@@ -1,5 +1,7 @@
 # 🌦️ European Weather Pipeline
 
+[![CI](https://github.com/ibrahim-yeryaran/european-weather-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/ibrahim-yeryaran/european-weather-pipeline/actions/workflows/ci.yml)
+
 An end-to-end **data engineering pipeline** that fetches live weather data for major
 European cities, stores it in **PostgreSQL**, and runs on a schedule orchestrated by
 **Apache Airflow** — all containerized with **Docker**.

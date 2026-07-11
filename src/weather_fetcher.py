@@ -90,7 +90,7 @@ INSERT_SQL = """
     VALUES
         (%(city)s, %(latitude)s, %(longitude)s, %(recorded_at)s,
          %(temperature_c)s, %(wind_speed_kmh)s)
-    ON CONFLICT DO NOTHING;
+    ON CONFLICT (city, recorded_at) DO NOTHING;
 """
 
 def save_readings(readings: list[dict]) -> int:

@@ -14,7 +14,11 @@ CREATE TABLE IF NOT EXISTS weather_readings (
     recorded_at     TIMESTAMP       NOT NULL,   -- UTC timestamp from the API
     temperature_c   NUMERIC(5, 2),              -- degrees Celsius
     wind_speed_kmh  NUMERIC(6, 2),              -- km/h
-    created_at      TIMESTAMP       NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP       NOT NULL DEFAULT NOW(),
+
+    -- Idempotency key: without this, INSERT ... ON CONFLICT never fires and
+    -- overlapping DAG runs write duplicate readings.
+    CONSTRAINT uq_city_recorded UNIQUE (city, recorded_at)
 );
 
 -- Index on (city, recorded_at) makes time-range queries per city fast

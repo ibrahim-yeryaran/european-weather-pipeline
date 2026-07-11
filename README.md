@@ -30,6 +30,10 @@ flowchart LR
 weather for 10 European cities from Open-Meteo → results are transformed and
 inserted into PostgreSQL → idempotent inserts prevent duplicates on retries.
 
+Verified live — the DAG running green in Airflow:
+
+![Airflow UI — european_weather_pipeline running green](docs/airflow_ui.png)
+
 ---
 
 ## 🧰 Tech Stack
